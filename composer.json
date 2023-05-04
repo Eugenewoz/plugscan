@@ -1,0 +1,14 @@
+{
+    "name": "eugenewozniak/plugscan",
+    "description": "A WP-CLI package to scan WordPress plugins folder and compare it with a list of known plugins.",
+    "type": "wp-cli-package",
+    "require": {
+        "wp-cli/wp-cli": "^2.5"
+    },
+    "autoload": {
+        "files": [
+            "plugscan-command.php"
+        ]
+    },
+    "license": "MIT"
+}
