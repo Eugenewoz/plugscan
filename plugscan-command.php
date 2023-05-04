@@ -51,7 +51,7 @@ private function check_fake_plugins()
 private function isPluginInTxtFile($plugin_folder)
 {
     $home = getenv('HOME');
-    $plugins_files = ["$home/.wp-cli/official_plugins1.txt", "$home/.wp-cli/official_plugins2.txt", "$home/.wp-cli/pro_plugins.txt"];
+    $plugins_files = ["$home/.wp-cli/packages/vendor/eugenewozniak/plugscan/official_plugins1.txt", "$home/.wp-cli/packages/vendor/eugenewozniak/plugscan/official_plugins2.txt", "$home/.wp-cli/packages/vendor/eugenewozniak/plugscan/pro_plugins.txt"];
 
     foreach ($plugins_files as $plugins_file) {
         if (!file_exists($plugins_file)) {
