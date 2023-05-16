@@ -6,6 +6,18 @@ if (!class_exists('WP_CLI')) {
 
 class PlugScan_Command extends WP_CLI_Command
 {
+    private $plugins_hashset = [];
+    private $local_files = [
+        "/tmp/official_plugins1.txt",
+        "/tmp/official_plugins2.txt",
+        "/tmp/pro_plugins.txt",
+    ];
+    private $remote_files = [
+        "https://wozner.net/wp-cli/official_plugins1.txt",
+        "https://wozner.net/wp-cli/official_plugins2.txt",
+        "https://wozner.net/wp-cli/pro_plugins.txt",
+    ];
+
     /**
      * Checks for fake plugins in the WordPress plugins folder.
      *
@@ -39,6 +51,7 @@ class PlugScan_Command extends WP_CLI_Command
 
         // Send the request and get the response
         $response = curl_exec($ch);
+	WP_CLI::log("Server response: " . $response);
 
         // Check for errors
         if (curl_errno($ch)) {
@@ -84,44 +97,81 @@ class PlugScan_Command extends WP_CLI_Command
             WP_CLI::success("No fake plugins found.");
         }
     }
-	
-	private function isPluginInTxtFile($plugin_folder)
+
+    private function isPluginInTxtFile($plugin_folder)
     {
-        // Set the HTTP context options for file_get_contents
-        $opts = [
-            "http" => [
-                "header" => "PRIVATE-TOKEN: JECubqeDKpG8CqE3DHSr\r\n"
-            ]
-        ];
-        $context = stream_context_create($opts);
+        if (empty($this->plugins_hashset)) {
+            $this->buildPluginsHashset();
+        }
+																	 
+			 
+		  
+												
 
-        // Replace local paths with the URLs of your remote files
-        $plugins_files = [
-            "https://wozner.net/wp-cli/official_plugins1.txt",
-            "https://wozner.net/wp-cli/official_plugins2.txt",
-            "https://wozner.net/wp-cli/pro_plugins.txt"
-        ];
+        // Check if the plugin folder is in the plugins_hashset
+        return isset($this->plugins_hashset[$plugin_folder]);
+}
+															  
+													   
+		  
 
-        foreach ($plugins_files as $plugins_file) {
-            // Use file_get_contents with the HTTP context to fetch the file
-        $file_contents = file_get_contents($plugins_file, false, $context);
-        if ($file_contents === false) {
-            WP_CLI::error("Unable to read " . basename($plugins_file) . " file.");
-            return false;
+private function buildPluginsHashset()
+{
+    $this->plugins_hashset = []; // Clear the existing hashset
+
+    // Set the HTTP context options for file_get_contents
+    $opts = [
+        "http" => [
+            "header" => "PRIVATE-TOKEN: JECubqeDKpG8CqE3DHSr\r\n"
+        ]
+    ];
+    $context = stream_context_create($opts);
+
+    for ($i = 0; $i < count($this->remote_files); $i++) {
+        $remote_file = $this->remote_files[$i];
+        $local_file = $this->local_files[$i];
+
+        // Check if the remote file is newer than the local file
+        if (!file_exists($local_file) || filesize($local_file) != $this->getRemoteFileSize($remote_file)) {
+            // Download the file
+            $file_contents = file_get_contents($remote_file, false, $context);
+            if ($file_contents === false) {
+                WP_CLI::error("Unable to download " . basename($remote_file) . " file.");
+                continue;
+            }
+
+            // Save the file locally
+            file_put_contents($local_file, $file_contents);
+        } else {
+            // Use the local file
+            $file_contents = file_get_contents($local_file);
         }
 
         // Split the file into lines
         $lines = explode("\n", $file_contents);
 
-        // Check each line for the plugin folder name
+        // Store each line in the plugins_hashset
         foreach ($lines as $line) {
-            if (trim($line) === $plugin_folder) {
-                return true;
-            }
+            $this->plugins_hashset[trim($line)] = true;
+							
+			 
         }
     }
 
-    return false;
+    return true;
+}
+
+private function getRemoteFileSize($url)
+{
+    // Fetch the headers for the URL
+    $headers = get_headers($url, 1);
+
+    // Return the Content-Length header, if it exists
+    if (array_key_exists('Content-Length', $headers)) {
+        return (int)$headers['Content-Length'];
+    }
+
+    return 0;
 }
 
 }
