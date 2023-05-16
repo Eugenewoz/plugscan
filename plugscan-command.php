@@ -80,4 +80,3 @@ private function isPluginInTxtFile($plugin_folder)
 }
 
 WP_CLI::add_command('plugscan', 'PlugScan_Command');
-
