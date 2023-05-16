@@ -38,37 +38,35 @@ class PlugScan_Command extends WP_CLI_Command
     }
 
     public function whitelist($args, $assoc_args)
-    {
-        list($plugin) = $args;
+{
+    list($plugin) = $args;
 
-        // Set up the cURL request
-        $ch = curl_init();
-        curl_setopt($ch, CURLOPT_URL, 'https://wozner.net/wp-cli/add_plugin.php');
-        curl_setopt($ch, CURLOPT_POST, true);
-        curl_setopt($ch, CURLOPT_POSTFIELDS, http_build_query(['plugin' => $plugin]));
-        curl_setopt($ch, CURLOPT_HTTPHEADER, ['PRIVATE-TOKEN: JECubqeDKpG8CqE3DHSr ']);
-        curl_setopt($ch, CURLOPT_RETURNTRANSFER, true);
+    // Set up the HTTP context options for file_get_contents
+    $opts = [
+        "http" => [
+            "method" => "POST",
+            "header" => "Content-Type: application/x-www-form-urlencoded\r\n" .
+                        "PRIVATE-TOKEN: JECubqeDKpG8CqE3DHSr\r\n",
+            "content" => http_build_query(['plugin' => $plugin])
+        ]
+    ];
+    $context = stream_context_create($opts);
 
-        // Send the request and get the response
-        $response = curl_exec($ch);
-	WP_CLI::log("Server response: " . $response);
+    // Send the request and get the response
+    $response = file_get_contents('https://wozner.net/wp-cli/add_plugin.php', false, $context);
 
-        // Check for errors
-        if (curl_errno($ch)) {
-            WP_CLI::error("Failed to whitelist plugin: $plugin. Error: " . curl_error($ch));
+    if ($response === false) {
+        WP_CLI::error("Failed to whitelist plugin: $plugin. Error: " . error_get_last()['message']);
+    } else {
+        // Check the HTTP status code
+        $statusCode = $http_response_header[0];
+        if (strpos($statusCode, '200') !== false) {
+            WP_CLI::success("Plugin whitelisted: $plugin");
         } else {
-            // Check the HTTP status code
-            $statusCode = curl_getinfo($ch, CURLINFO_HTTP_CODE);
-            if ($statusCode == 200) {
-                WP_CLI::success("Plugin whitelisted: $plugin");
-            } else {
-                WP_CLI::error("Failed to whitelist plugin: $plugin. HTTP status code: " . $statusCode);
-            }
+            WP_CLI::error("Failed to whitelist plugin: $plugin. HTTP status code: " . $statusCode);
         }
-
-        // Close the cURL session
-        curl_close($ch);
     }
+}
 
     private function check_fake_plugins()
     {
