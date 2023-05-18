@@ -69,33 +69,57 @@ class PlugScan_Command extends WP_CLI_Command
 }
 
     private function check_fake_plugins()
-    {
-        $wp_content_dir = defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR : ABSPATH . 'wp-content';
-        $plugins_path = $wp_content_dir . '/plugins';
-        $plugin_folders = glob($plugins_path . '/*', GLOB_ONLYDIR);
+{
+    $wp_content_dir = defined('WP_CONTENT_DIR') ? WP_CONTENT_DIR : ABSPATH . 'wp-content';
+    $plugins_path = $wp_content_dir . '/plugins';
+    $plugin_folders = glob($plugins_path . '/*', GLOB_ONLYDIR);
 
-        $fake_plugins = [];
+    $fake_plugins = [];
 
-        foreach ($plugin_folders as $plugin_folder) {
-            $plugin_folder = basename($plugin_folder);
+    foreach ($plugin_folders as $plugin_folder) {
+        $plugin_folder = basename($plugin_folder);
 
-            $is_fake_plugin = !$this->isPluginInTxtFile($plugin_folder);
+        $is_fake_plugin = !$this->isPluginInTxtFile($plugin_folder);
 
-            if ($is_fake_plugin) {
-                $fake_plugins[] = $plugin_folder;
-            }
-        }
-
-        if (!empty($fake_plugins)) {
-            WP_CLI::warning("Fake plugins found:");
-            foreach ($fake_plugins as $fake_plugin) {
-                WP_CLI::line("- " . $fake_plugin);
-            }
-        } else {
-            WP_CLI::success("No fake plugins found.");
+        if ($is_fake_plugin) {
+            $fake_plugins[] = [
+                'name' => $plugin_folder,
+                'uri' => $this->get_plugin_uri($plugins_path . '/' . $plugin_folder)
+            ];
         }
     }
 
+    if (!empty($fake_plugins)) {
+        WP_CLI::warning("Fake plugins found:");
+        $output = new \cli\Table();
+        $output->setHeaders(['Name', 'Plugin URI']);
+        foreach ($fake_plugins as $fake_plugin) {
+            $output->addRow([$fake_plugin['name'], $fake_plugin['uri']]);
+        }
+        $output->display();
+    } else {
+        WP_CLI::success("No fake plugins found.");
+    }
+}
+
+private function get_plugin_uri($plugin_dir)
+{
+    $plugin_uri = 'No file found with Plugin URI, might be fake plugin';
+    $php_files = glob($plugin_dir . '/*.php');
+
+    foreach ($php_files as $php_file) {
+        $file_content = file_get_contents($php_file);
+        $matches = [];
+
+        // look for a line starting with "Plugin URI:"
+        if (preg_match('/^.*Plugin URI: (.*)$/mi', $file_content, $matches)) {
+            $plugin_uri = trim($matches[1]);
+            break;
+        }
+    }
+
+    return $plugin_uri;
+}
     private function isPluginInTxtFile($plugin_folder)
     {
         if (empty($this->plugins_hashset)) {
